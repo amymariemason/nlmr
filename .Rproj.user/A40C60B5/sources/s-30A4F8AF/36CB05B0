@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1579273459229.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "131|22|133|4|\n134|21|136|4|\n137|27|139|4|\n140|67|142|3|\n",
+    "hash" : "1754514950",
+    "id" : "36CB05B0",
+    "lastKnownWriteTime" : 1581099514,
+    "last_content_update" : 1581099514160,
+    "path" : "U:/My Documents/Non-linear MR/Gen_sim_data2.R",
+    "project_path" : null,
+    "properties" : {
+        "cursorPosition" : "224,0",
+        "scrollLine" : "199"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 2,
+    "source_on_save" : true,
+    "source_window" : "",
+    "type" : "r_source"
+}

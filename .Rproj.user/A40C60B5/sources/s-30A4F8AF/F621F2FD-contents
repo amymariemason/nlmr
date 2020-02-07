@@ -1,0 +1,29 @@
+
+menopause_snps <- read_excel("U:/My Documents/Menopause/41588_2015_BFng3412_MOESM51_ESM.xlsx", 
+                                                  sheet = "S3 GWAS Conditional results", 
+                                                range = "A1:G60")
+
+menopause_snps_rs<- read_table2("U:/My Documents/Menopause/menopause_snps_rs_PhenoScanner_SNP.tsv")
+
+menopause_snps<- unique(menopause_snps_rs[,c("chr", "pos_hg19"),])
+names(menopause_snps)<- c("chr", "pos")
+
+qctoolify <- function(table, chr="chr", pos="pos", filename){
+  #table is the table of chromosomes and positions you want to extract
+  #chr is the name of the column containing chromosone information (integrer)
+  #pos is the name of the column containing position information
+  #filename is where the file should be saved
+  ###################
+  # this function creates a space seperated list of snps ready to use in qctool
+  table_temp<-table
+  names(table)[names(table) == chr] <- "chr"
+  names(table)[names(table) == pos] <- "pos"
+  table$output<-ifelse(as.numeric(as.character(table$chr))<10, paste0("0",table$chr,":", table$pos), paste0(table$chr,":", table$pos))
+  table2<-t(table$output)
+  write.table(table2,filename,sep=" ",row.names=FALSE, quote =FALSE, col.names=FALSE)
+  table <-table_temp
+  rm(table_temp)
+}
+
+
+qctoolify(menopause_snps, chr="Chr", pos="pos", "U:/My Documents/Menopause/menopause_snps.txt")

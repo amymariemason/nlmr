@@ -1,0 +1,33 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1579886820582.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "5CBF4A05",
+    "lastKnownWriteTime" : 8316288284647760449,
+    "last_content_update" : 1579886820582,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "732C5AAA",
+        "caption" : "menopause_snps_rs_PhenoScanner_SNP",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=menopause_snps_rs_PhenoScanner_SNP&cache_key=732C5AAA",
+        "displayedObservations" : 54,
+        "environment" : "",
+        "expression" : "menopause_snps_rs_PhenoScanner_SNP",
+        "object" : "menopause_snps_rs_PhenoScanner_SNP",
+        "preview" : 0,
+        "totalObservations" : 54,
+        "variables" : 19
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 14,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

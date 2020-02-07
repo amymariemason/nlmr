@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1579102528716.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "1316F41C",
+    "lastKnownWriteTime" : 1547472034,
+    "last_content_update" : 1547472034,
+    "path" : "~/Non-linear MR/Matt Arnold Code/nlme_summ_aes MA.r",
+    "project_path" : "Matt Arnold Code/nlme_summ_aes MA.r",
+    "properties" : {
+        "cursorPosition" : "47,75",
+        "scrollLine" : "28"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 4,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

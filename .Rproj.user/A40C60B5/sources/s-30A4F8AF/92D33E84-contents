@@ -1,0 +1,60 @@
+---
+title: "Test Chris Foley code"
+author: "Stephen Burgess"
+date: "13/11/2019"
+output: html_document
+---
+
+```{r}
+#setwd("C:/Dropbox/People/Chris Foley/mrclust_handover/mrclust_code_and_figure_files")
+setwd("U:/My Documents/Code_review/Foley_2019/CodeReview1/")
+#source the intended MR Cluster code
+source("mr_clust_em_init_test.R")
+#load test data & attach
+#Note: deleted repeated line
+dat = read.table("NEUexp_SCZout_MRdata.txt", sep=" ", header=TRUE, stringsAsFactors=FALSE)
+attach(dat)
+
+# calculate/label standard MR estimates
+theta = BetaYG/BetaXG;
+theta.sd = seBetaYG/abs(BetaXG);
+bx = BetaXG;
+by = BetaYG;
+bxse = seBetaXG;
+byse = seBetaYG;
+
+# create name labels for the data
+obs.names = paste0("obs_",1:length(theta));
+
+# run the EM algorithm 
+                    #indicate dataset
+res_em = mr_clust_em(theta, theta.se, bx = bx, by = by, bxse = bxse, byse = byse, obs.names = obs.names,
+                     # variables for adjusting convergence
+                     max.iter = 5e3, tol = 1e-5, cluster.sizes = NULL, init.clust.means = NULL, init.clust.probs = NULL,
+                   # variables controling the junk clusters
+                     junk.mixture = TRUE, df = 4, junk.mean = NULL, junk.sd = NULL, junk.prob = NULL,  
+                     junk.null.aware.bic = TRUE, fix.junk.prob = FALSE,
+                    # variables controlling the null cluster
+                     null.mixture = TRUE, null.sd = NULL, null.prob = NULL, fix.null.prob = FALSE,
+                    
+                     stop.bic.iter = 5, min.clust.search = 10, scale.grid.search = FALSE, grid.increment = 0.1, grid.max = 2,
+                     clust.size.prior = FALSE, bic.prior = NULL, results.list = list("all", "best"),
+                     cluster.membership = list(by.prob = 0.1, bound = 0.5), plot.results = list("best", min.pr = 0.5),
+                     trait.search = FALSE, trait.pvalue = 1e-8,
+                     rand.init = TRUE, rand.num = 10, rand.sample = seq(0.05,0.4, by = 0.05));
+res_em$results$best;
+res_em$plots$two.stage + xlim(0, max(bx+2*bxse)) + xlab("Genetic association with NEU") + ylab("Genetic association with SCZ") + ggtitle("");
+
+res80 = pr.clust(res_em$results$best, 0.8, 4);
+keep80 = which(obs.names %in% res80$observation);
+bx80   = bx[keep80];
+bxse80 = bxse[keep80];
+by80   = by[keep80];
+byse80 = byse[keep80];
+obs.names80 = obs.names[keep80];
+
+two.stage.plot(res80, bx80, by80, bxse80, byse80, obs.names80) + xlim(0, max(bx80+3*bxse80)) + xlab("Genetic association with NEU") + ylab("Genetic association with SCZ") + ggtitle("");
+
+detach(dat)
+```
+

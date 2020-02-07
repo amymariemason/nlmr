@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1549030279403.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3261988519",
+    "id" : "C1D28CC1",
+    "lastKnownWriteTime" : 1549274776,
+    "last_content_update" : 1549274776646,
+    "path" : "~/Non-linear MR/Gen_sim_data.R",
+    "project_path" : "Gen_sim_data.R",
+    "properties" : {
+        "cursorPosition" : "17,60",
+        "scrollLine" : "0",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
