@@ -1,0 +1,20 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1549033160192.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "421165256",
+    "id" : "54E7A270",
+    "lastKnownWriteTime" : 1547472032,
+    "last_content_update" : 1547472032,
+    "path" : "~/Non-linear MR/Matt Arnold Code/epic_cvd_example.r",
+    "project_path" : "Matt Arnold Code/epic_cvd_example.r",
+    "properties" : {
+    },
+    "relative_order" : 5,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

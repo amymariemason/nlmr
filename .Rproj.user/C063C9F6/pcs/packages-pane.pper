@@ -1,0 +1,7 @@
+{
+    "installOptions" : {
+        "installDependencies" : true,
+        "installFromRepository" : true,
+        "libraryPath" : "\\\\me-filer1/home$/am2609/My Documents/R/win-library/3.5"
+    }
+}

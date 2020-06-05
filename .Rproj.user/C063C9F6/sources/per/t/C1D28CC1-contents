@@ -1,0 +1,23 @@
+###
+#Author: Amy Mason
+# Purpose: generate simulatoion data from nlmr paper 
+# Date: Jan 2019
+##
+library(MASS)
+# fixing random numbers for repetition of what is generated
+set.seed(4743045)
+data<-as.data.frame(rbinom(10000,2,0.3))
+names(data)<-c("g")
+# creating random underlying data
+data$u<-runif(1000,0,1)
+data$errorX<-rexp(10000,1)
+data$errorY<-rnorm(10000,0,1)
+data$X<-2+0.25*data$g+data$u +data$errorX
+beta1<-1.5
+beta2<-0.5
+# generate various Y with different exposure-outcome results
+data$linear.Y<-beta1*data$X+0.8*data$u+data$errorY
+data$quadratic.Y<-beta1*(data$X)^2+beta2*data$X+0.8*data$u+data$errorY
+data$sqrt.Y<-beta1*sqrt(data$X)+0.8*data$u+data$errorY
+data$log.Y<-beta1*log(data$X)+0.8*data$u+data$errorY
+data$threshold.Y<-beta1*data$X+0.8*data$u+data$errorY
