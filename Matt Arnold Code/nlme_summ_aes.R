@@ -11,7 +11,6 @@
 #' @param xmean average value of the exposure in each stratum (or whatever summary of the exposure level in the stratum is desired).
 #' @param method meta-regression method parsed to the rma package. The default is fixed-effects ("FE").
 #' @param d fractional polynomial degree. The default is degree 1. The other options are: 1, 2, or "both".
-#' @param powers fractional polynomial powers to test.
 #' @param pd p-value cut-off for choosing the best-fitting fractional polynomial of degree 2 over the best-fitting fractional polynomial degree 1. This option is only used if d="both". The default is 0.05.
 #' @param ci the type of 95\% confidence interval. There are three options: (i) using the model standard errors ("model_se"), (ii) using bootstrap standard errors ("bootstrap_se"), (iii) using bootstrap percentile confidence intervals ("bootstrap_per"). The default is the model standard errors.
 #' @param nboot the number of bootstrap replications (if required). The default is 100 replications.
@@ -41,11 +40,7 @@
 #' @author Stephen Burgess <sb452@medschl.cam.ac.uk>, leading heavily on James R Staley <js16174@bristol.ac.uk>
 #' @export
 
-## Matt Arnold <mga37@medschl.cam.ac.uk> changes
-## - add the powers option 
-## - fix in line 204 to correct a typo; add $x to give log(plot.data$x) in the second from last term
-
-frac_poly_summ_mr <- function(by, bx, byse, bxse, xmean, method="FE", d=1, powers=c(0, -3, -2, -1.5, -1, -0.5, 1, 2), pd=0.05, ci="model_se", nboot=100, fig=FALSE, family="binomial",
+frac_poly_summ_mr <- function(by, bx, byse, bxse, xmean, method="FE", d=1, pd=0.05, ci="model_se", nboot=100, fig=FALSE, family="binomial",
                               offset=0, pref_x="x", pref_y="y", ref=NA, ci_type="overall", breaks=NULL, ylim_lower = NA, ylim_upper = NA, xlim_lower = NA, xlim_upper = NA) {
   ##### Error messages #####
   if(!(d==1 | d==2 | d=="both")) stop('the degree has to be equal to 1, 2 or "both"')
@@ -55,7 +50,7 @@ frac_poly_summ_mr <- function(by, bx, byse, bxse, xmean, method="FE", d=1, power
       frac_se      = byse
       xcoef_sub    = bx
       xcoef_sub_se = bxse
-      xcoef = sum(bx*(bxse^-2))/sum(bxse^-2)
+      xcoef = sum(bx*bxse^-2)/sum(bxse^-2)
       q = length(by)
   
   ##### Test of IV-exposure assumption #####
@@ -63,6 +58,7 @@ frac_poly_summ_mr <- function(by, bx, byse, bxse, xmean, method="FE", d=1, power
   p_het_trend <- rma.uni(xcoef_sub ~ xmean, vi=xcoef_sub_se^2, method=method)$pval[2]
   
   ##### Best-fitting fractional polynomial of degree 1 #####
+  powers<-c(0, -2, -1.5, -1, -0.5, 1, 2)
   p<-NULL
   ML<-NULL
   j<-1
@@ -79,8 +75,8 @@ frac_poly_summ_mr <- function(by, bx, byse, bxse, xmean, method="FE", d=1, power
   
   ##### Best-fitting fractional polynomial of degree 2 #####
   if(d==1 | d==2 | d=="both"){
-    powers1 <- powers
-    powers2 <- powers
+    powers1 <- c(0, -3, -2, -1.5, -1, -0.5, 1, 2)
+    powers2 <- c(0, -3, -2, -1.5, -1, -0.5, 1, 2)
     p1<-NULL
     p2 <-NULL
     ML <- NULL
@@ -241,8 +237,8 @@ frac_poly_summ_mr <- function(by, bx, byse, bxse, xmean, method="FE", d=1, power
                              figure <- figure + geom_hline(aes(yintercept=1), colour="grey") + geom_line(aes(y=yest), color="black") +
                                        geom_line(aes(y=lci), color="grey") + geom_line(aes(y=uci), color="grey") + theme_bw() +
                                        labs(x=pref_x,y=pref_y) +
-                                       theme(axis.title.x = element_text(vjust=0.5, size=20), axis.title.y = element_text(vjust=0.5, size=20),
-                                       axis.text.x=element_text(size=18), axis.text.y=element_text(size=18)) + geom_point(aes(x=x, y=y),
+                                       theme(axis.title.x = element_text(vjust=0.5, size=16), axis.title.y = element_text(vjust=0.5, size=16),
+                                       axis.text.x=element_text(size=14), axis.text.y=element_text(size=14)) + geom_point(aes(x=x, y=y),
                                        data=plot.data.1, colour="red", size=4) + theme(panel.grid.major = element_blank(),
                                        panel.grid.minor = element_blank());
                if(!is.null(breaks)){figure <- figure + scale_y_continuous(breaks=breaks)}; figure <- figure + coord_trans(y="log")}
@@ -304,7 +300,7 @@ figure <- figure + xlim(xlim_lower, xlim_upper) }
   p_heterogeneity <- as.matrix(data.frame(Q=p_het, trend=p_het_trend))
 
 if (fig==TRUE) {
-  results <- list(n=NA, model=model, powers=powers, coefficients=coefficients, lace=lace, xcoef=xcoef_quant, p_tests=p_tests, p_heterogeneity=p_heterogeneity, figure=figure) }
+  results <- list(n=NA, model=model, powers=powers, coefficients=coefficients, lace=lace, xcoef=xcoef_quant, p_tests=p_tests, p_heterogeneity=p_heterogeneity, figure=figure, plot.data=plot.data) }
 if (fig==FALSE) {
   results <- list(n=NA, model=model, powers=powers, coefficients=coefficients, lace=lace, xcoef=xcoef_quant, p_tests=p_tests, p_heterogeneity=p_heterogeneity) }
   class(results) <- "frac_poly_mr"
