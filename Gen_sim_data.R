@@ -3,7 +3,6 @@
 # Purpose: generate simulatoion data from nlmr paper 
 # Date: Jan 2019
 ##
-1
 # creating random underlying data
 # We want: 
   # g - a binary gene

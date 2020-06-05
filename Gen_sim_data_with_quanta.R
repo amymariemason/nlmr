@@ -25,7 +25,7 @@ data$X<-2+0.25*data$g+data$u +data$errorX
 
 # generate various Y with different exposure-outcome results
 data$linear.Y<-beta1*data$X+0.8*data$u+data$errorY
-data$quadratic.Y<-beta2*(data$X)^2+beta1*data$X+0.8*data$u+data$errorY
+data$quadratic.Y<-beta1*(data$X)^2+beta2*data$X+0.8*data$u+data$errorY
 data$sqrt.Y<-beta1*sqrt(data$X)+0.8*data$u+data$errorY
 data$log.Y<-beta1*log(data$X)+0.8*data$u+data$errorY
 data$threshold.Y<-ifelse(data$X>beta2,beta1*data$X,0)+0.8*data$u+data$errorY
@@ -47,6 +47,10 @@ return(data)
 
 #############################################################
 # test data pre-summary
+
+# library(devtools)
+# install_github("jrs95/nlmr")
+
 
 library(nlmr)
 data<-create_data(10000)
