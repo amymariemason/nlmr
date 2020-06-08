@@ -12,8 +12,9 @@ require(ggplot2)
 require(matrixStats)
 require(survival)
 require(ggplot2)
+require(patchwork)
 source("nlmr_functions.r")
-source("nlme_summ_aes MA.r")
+source("nlme_summ_aes.r")
 # fixing random numbers for repetition of what is generated
 set.seed(4743045)
 # creating random underlying data
@@ -34,7 +35,7 @@ set.seed(4743045)
 ### POTENTIAL EXPANSION - add known covariate (linear?)
 
 
-create_data <- function(N, beta1 = 1.5, beta2 = 0.5, confound = 0.8) {
+create_data <- function(N, beta1 = 3, beta2 = 7, confound = 0.5) {
   # generate G  
   data <- as.data.frame(rbinom(N,2,0.3))
   names(data) <- c("g")
@@ -57,10 +58,6 @@ create_data <- function(N, beta1 = 1.5, beta2 = 0.5, confound = 0.8) {
   data$log.Y <-         beta1*log(data$X) + confound*data$u + data$errorY
   data$threshold.Y <-   ifelse(data$X > beta2, beta1*data$X, 0)+
                           confound*data$u + data$errorY
-  # recentre the data
-  data$orgX<-data$X
-  data$X<- data$orgX- mean(data$orgX)
-  
   return(data)
 }
 
@@ -70,10 +67,29 @@ create_data <- function(N, beta1 = 1.5, beta2 = 0.5, confound = 0.8) {
 
 library(nlmr)
 data<-create_data(10000)
- fracpoly_mr(data$linear.Y, data$X, data$g, family="gaussian", q = 10, d = 1,
-             fig = T)
- fracpoly_mr(data$quadratic.Y, data$X, data$g, family="gaussian", q = 10, d = 1,
-             fig = T)
+# TEST 1: Linear data
+test1<- fracpoly_mr(data$linear.Y, data$X, data$g, family="gaussian", q = 10,
+                    d = 1, fig = T)
+test2<- piecewise_mr(data$linear.Y, data$X, data$g, family="gaussian", fig = T)
+
+f <- function(x) (3*(x-mean(data$X)))
+test1$figure+stat_function(fun = f, colour = "green")+
+  test2$figure+stat_function(fun = f, colour = "green")
+# TEST 2: quadratic data
+
+test1<-  fracpoly_mr(data$quadratic.Y, data$X, data$g, family="gaussian",
+                     q = 10, d = "both", fig = T)
+
+test2<-  piecewise_mr(data$quadratic.Y, data$X, data$g, family="gaussian",
+                     fig = T)
+ 
+xref=mean(data$X)
+ f <- function(x) (7*x^2 + 3*x - 7*xref^2-3*xref)
+ test1$figure+stat_function(fun = f, colour = "green")+
+   test2$figure+stat_function(fun = f, colour = "green")
+ 
+ 
+# 
  fracpoly_mr(data$sqrt.Y, data$X, data$g, family="gaussian", q = 10, d = 1,
              fig=T)
  fracpoly_mr(data$log.Y, data$X, data$g, family="gaussian", q = 10, d = 1, 
@@ -81,7 +97,8 @@ data<-create_data(10000)
  fracpoly_mr(data$threshold.Y, data$X, data$g, family="gaussian", q = 10, d = 1,
              fig = T)
 
-# 
+# Conclusion: all data is generating correctly and identified by the programs
+ # for linear and quadratic data
  
 #############################################################
 #  create quanta summary data function
@@ -114,21 +131,26 @@ data<-create_data(10000)
  
  
 summary_function <- function(data, gene, exposure, outcome, quant = 100) { 
+  #### ARGH, SHOULD BE IV-FREE EXPOSURE
+  
   # linear model of G->Y
   YG<-lm(data[,outcome]~data[,gene])
   Y0<- data[,outcome] - YG$fit
   
   # this calculates the "IV-free exposure"
-  qs = quantile(Y0, prob=seq(0, 1-1/quant, by=1/quant))
+ qs = quantile(Y0, prob=seq(0, 1-1/quant, by=1/quant))
+  qs2 = quantile(data[,exposure], prob=seq(0, 1-1/quant, by=1/quant))
   # this divides into strata based on IV-free exposure
-  quantx0 = as.numeric(lapply(Y0, function(x) { return(sum(x>qs)) }))
-
+#quantx0 = as.numeric(lapply(Y0, function(x) { return(sum(x>qs)) }))
+  quantx0 = as.numeric(lapply(data[,exposure], function(x) { return(sum(x>qs2)) }))
+  
   # this calculates the association for each quanta
   BetaYG   = NULL
   seBetaYG = NULL
   BetaXG  = NULL
   seBetaXG = NULL
   meanX = NULL
+  BetaXY = NULL
   
   for (j in 1:length(qs)) {
     BetaYG[j]   = summary(lm(data[quantx0 == j, outcome] ~ 
@@ -140,22 +162,35 @@ summary_function <- function(data, gene, exposure, outcome, quant = 100) {
     seBetaXG[j] = summary(lm(data[quantx0 == j, exposure] ~
                                data[quantx0 == j, gene]))$coef[2,2]
     meanX[j] = mean(data[quantx0 == j, exposure])
+    BetaXY[j] = BetaYG[j]/BetaXG[j]
   }
   
 
- output <- data.frame(BetaXG, BetaYG, seBetaXG, seBetaYG, meanX)
+ output <- data.frame(BetaXG, BetaYG, seBetaXG, seBetaYG, meanX, BetaXY)
  print(list(summary = head(output)))
  invisible(list(summary = output))
 }
  
-
+# test summary function
+ 
+# test 1: linear  
+ summ<-summary_function(data, gene = "g", exposure = "X",
+                        outcome = "linear.Y", quant = 10) 
+ 
+ test1<- fracpoly_mr(data$linear.Y, data$X, data$g, family="gaussian", q = 10,
+                     d = 1, fig = T)
+ test2<- piecewise_mr(data$linear.Y, data$X, data$g, family="gaussian", fig = T)
+ 
+ f <- function(x) (3*(x-mean(data$X)))
+ test1$figure+stat_function(fun = f, colour = "green")+
+   test2$figure+stat_function(fun = f, colour = "green")
 
 
 #############################################################
 # generate summary data
 
 create_summary_data<-function(Ytype = "linear", quantiles = 100, keep = FALSE,
-                              N = 10000, beta1 = 1.5, beta2 = 0.5, 
+                              N = 10000, beta1 = 3, beta2 = 7, 
                               confound = 0.8) {
   # create empty summary set
   df <- data.frame(matrix(ncol = 6, nrow = 0))
