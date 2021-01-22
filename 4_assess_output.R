@@ -1,0 +1,461 @@
+#(Equivalent of section 3.2 in original paper )
+
+#setwd("../Matt Arnold Code")
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(MASS,methods,parallel, metafor, ggplot2, matrixStats, survival,
+               patchwork)
+if (!require("remotes")) install.packages("remotes")
+if (!require("nlmr")) remotes::install_github("jrs95/nlmr")
+library(nlmr)
+source("../nlme_summ_aes_AM.R")
+# source("nlme_summ_aes.r")
+source("../2_Gen_sim_data.R")
+source("../fit_power_AM.R")
+# # fixing random numbers for repetition of what is generated
+# set.seed(4743045)
+# 
+# # set parameters
+# par1<- -3
+# par2<- 1
+# 
+# beta0<-0
+# beta1<-2
+# beta2<-1
+# 
+# deg = 1
+
+# define checking function
+checkEst<-function(x="dummy",deg, par1, par2, beta0=0, beta1, beta2){
+  
+  # refine variables to run in fracpoly
+  if (deg==1){
+    truedeg<-1
+    truepowers <- par1
+    beta2<-0
+  }else{
+    truedeg<-2
+    truepowers<-c(par1, par2)
+  }
+  # create dataset
+  lotsofdata<-create_summary_data(Ytype = "fracpoly", keep = TRUE, N = 10000, 
+                                  p1=par1, p2=par2, 
+                                  beta0=beta0, beta1 = beta1, beta2 = beta2,
+                                  quantiles = 10)
+  
+  summdata<-lotsofdata$summary 
+  alldata<-lotsofdata$alldata
+  
+  
+  ##########################################################
+  # TEST 1: To evaluate the fractional polynomial method, 
+  # we first fitted the correct fractional polynomial model 
+  # (i.e., with the correct degree and powers) and 
+  # assessed the bias and coverage of the effect parameter estimates.
+  
+  
+  # non summerised fracpoly: fit correct poly, using internal code from frac_poly
+  ivf <- nlmr::iv_free(y = alldata$fracpoly.Y,
+                 x = alldata$X, 
+                 g = alldata$g, 
+                 q = 10, 
+                 covar=NULL,
+                 family = "gaussian")
+  x0 <- ivf$x0
+  xcoef <- ivf$xcoef
+  x0q <- ivf$x0q
+  loc <- lace(y = alldata$fracpoly.Y,
+              x = alldata$X, 
+              g = alldata$g, 
+              q = 10, 
+              covar=NULL,
+              family = "gaussian",
+              x0q = x0q, 
+              xc_sub = TRUE,
+              xpos = "mean")
+  coef <- loc$coef/xcoef
+  coef_se <- loc$coef_se/xcoef
+  xmean <- loc$xmean
+  xcoef_sub <- loc$xcoef_sub
+  xcoef_sub_se <- loc$xcoef_sub_se
+  d<- truedeg
+  likelihood_d1 <- NULL
+  if(d==1){
+    p1<-par1-1
+    # code taken from fracpoly_best_powers code
+    if (p1 == -1) {
+      x1 <- xmean^(-1)
+    } else {
+      x1 <- (p1 + 1) * xmean^p1
+    }
+    fp_mod <- try(rma(coef ~ -1 + x1, 
+                      vi = (coef_se)^2, 
+                      method = "FE"),
+                  silent = TRUE)
+    if (is(fp_mod, "try-error") == T) {
+      likelihood_d1 <- c(likelihood_d1, NA)
+    }  else {
+      if (p1 == 0) {
+        fp1 <- fp_mod
+        p_ML <- p1
+      }   else {
+        if (fp_mod$fit.stats[1, 1] >= suppressWarnings(max(likelihood_d1, 
+                                                           na.rm = T))) {
+          fp1 <- fp_mod
+          p_ML <- p1
+        }
+      }
+      likelihood_d1 <- c(likelihood_d1, fp_mod$fit.stats[1,1])
+    }
+    model <- fp1
+  }
+  
+  likelihood_d2 <- NULL
+  if(d==2){
+    p11<-par1-1
+    p21<-par2-1
+    if (p11 == -1) {
+      x1 <- xmean^p11
+    }else {
+      x1 <- (p11 + 1) * xmean^p11
+    }
+    if (p11 == p21) {
+      if (p21 == -1) {
+        x2 <- 2 * (xmean^p21) * log(xmean)
+      } else {
+        x2 <- ((p21 + 1) * (xmean^p21) * log(xmean) + xmean^p21)
+      }
+    } else {
+      if (p21 == -1) {
+        x2 <- xmean^p21
+      }
+      else {
+        x2 <- (p21 + 1) * xmean^p21
+      }
+    }
+    fp_mod <- try(rma(coef ~ -1 + x1 + x2,
+                      vi = (coef_se)^2,
+                      method = "FE"),
+                  silent = TRUE)
+    if (is(fp_mod, "try-error") == T) {
+      likelihood_d2 <- c(likelihood_d2, NA)
+    }
+    else {
+      if (p11 == 0 & p21 == 0) {
+        fp2 <- fp_mod
+        p1_ML <- p11
+        p2_ML <- p21
+      }
+      else {
+        if (fp_mod$fit.stats[1, 1] >= suppressWarnings(max(likelihood_d2, 
+                                                           na.rm = T))) {
+          fp2 <- fp_mod
+          p1_ML <- p11
+          p2_ML <- p21
+        }
+      }
+      likelihood_d2 <- c(likelihood_d2, fp_mod$fit.stats[1, 1])
+    }
+    
+    model <- fp2
+  }
+  loglik <-  model$fit.stats[1,1]
+  
+  
+  if (d == 1) {
+    powers <- p_ML + 1
+    
+    beta <- as.numeric(model$b)
+    cov <- model$vb
+    se <- model$se
+    lci <- beta - 1.96 * se
+    uci <- beta + 1.96 * se
+    names(beta)<-"x1"
+    names(se)<-"x1"
+    names(lci)<-"x1"
+    names(uci)<-"x1"
+  }else {
+    powers <- c((p1_ML + 1), (p2_ML + 1))
+    if(par1==1){
+      vars<-which(rownames(model$b) %in% c("intrcpt", "x2"))
+    }else{
+      if(par2==1){
+        vars<-which(rownames(model$b) %in% c("x1", "intrcpt"))
+        names<-c("x2", "x1")
+      }else{
+        vars<-which(rownames(model$b) %in% c("x1", "x2"))
+      }
+    }
+    beta <- as.numeric(model$b[vars,])
+    se<- model$se[vars]
+    lci <- beta - 1.96 * se
+    uci <- beta + 1.96 * se
+    names <-rownames(model$b)
+    if(names[1]=="intrcpt"){
+      if (names[2]=="x1"){
+        names[1]<-"x2"
+      }
+      if (names[2]=="x2"){
+        names[1]<-"x1"
+      }
+    }
+    if(names[2]=="intrcpt"){
+      if (names[1]=="x1"){
+        names[2]<-"x2"
+      }
+      if (names[1]=="x2"){
+        names[2]<-"x1"
+      }
+    }
+    
+    names(beta)<-names
+    names(se) <-names
+    names(lci)<-names
+    names(uci)<-names
+    
+  }
+  
+  
+  cov1<-ifelse(lci["x1"]<= beta1 & uci["x1"]>=beta1, T,F )
+  if(d==2){
+    cov2<-ifelse(lci["x2"]<= beta2 & uci["x2"]>=beta2, T,F )
+  } else {
+    cov2<-NA
+  }
+  
+  if(d==1){
+    results_test1<-c(x,par1,beta1,beta,se, cov1, loglik)
+    names(results_test1)<-c("rowid", "p1", "beta1",
+                            "Beta_1_est", "Beta_1_se", "Beta_1_cov", "Loglik")
+  }
+  
+  if(d==2){
+    results_test1<-c(x,par1,par2, beta1,beta2, beta["x1"],beta["x2"],se["x1"],se["x2"], cov1, cov2, loglik)
+    names(results_test1)<-c("rowid", 
+                            "p1", "p2",
+                            "beta1",  "beta2",
+                            "Beta_1_est", "Beta_2_est",
+                            "Beta_1_se", "Beta_2_se",
+                            "Beta_1_cov", "Beta_2_cov",
+                            "Loglik")
+  }
+  model1<-model
+  
+  ##### repeat, for summerised data
+  
+  
+  
+  
+  # summerised
+  bx = summdata$BetaXG
+  bxse = summdata$seBetaXG
+  by = summdata$BetaYG 
+  byse = summdata$seBetaYG
+  xmean = summdata$meanX 
+  family ="gaussian"
+  d = truedeg
+  p1_ML<-par1-1
+  if (d>1){
+    p2_ML<-par2-1
+  }
+  
+  
+  method="FE" 
+  pd=0.05
+  ci="model_se" 
+  nboot=100
+  ci_type="overall"
+  
+  # using code from frac_poly_summ_mr
+  frac_coef    = by
+  frac_se      = byse
+  xcoef_sub    = bx
+  xcoef_sub_se = bxse
+  xcoef = sum(bx*(bxse^-2))/sum(bxse^-2)
+  q = length(by)
+  
+  ##### Model #####
+  if(d==1){if(p_ML==-1){x1<-xmean^p_ML}else{x1 <- (p_ML+1)*xmean^p_ML}; model <- rma(frac_coef/xcoef ~ -1 + x1, vi=(frac_se/xcoef)^2, method=method)}
+  if(d==2){if(p1_ML==-1){x1<-xmean^p1_ML}else{x1 <- (p1_ML+1)*xmean^p1_ML}; if(p1_ML==p2_ML){if(p2_ML==-1){x2 <- 2*(xmean^p2_ML)*log(xmean)}else{x2 <- ((p2_ML+1)*(xmean^p2_ML)*log(xmean) + xmean^p2_ML)}}else{if(p2_ML==-1){x2 <- xmean^p2_ML}else{x2 <- (p2_ML+1)*xmean^p2_ML}}; model <- rma(frac_coef/xcoef ~ -1 + x1 + x2, vi=(frac_se/xcoef)^2, method=method)}
+  
+  ##### Results #####
+  loglik<-as.numeric(model$fit.stats[1,1])
+  if(ci=="model_se"){
+    if (d == 1) {
+      powers <- p_ML + 1
+      
+      beta <- as.numeric(model$b)
+      cov <- model$vb
+      se <- model$se
+      lci <- beta - 1.96 * se
+      uci <- beta + 1.96 * se
+      names(beta)<-"x1"
+      names(se)<-"x1"
+      names(lci)<-"x1"
+      names(uci)<-"x1"
+    }else {
+      powers <- c((p1_ML + 1), (p2_ML + 1))
+      if(par1==1){
+        vars<-which(rownames(model$b) %in% c("intrcpt", "x2"))
+      }else{
+        if(par2==1){
+          vars<-which(rownames(model$b) %in% c("x1", "intrcpt"))
+        }else{
+          vars<-which(rownames(model$b) %in% c("x1", "x2"))
+        }
+      }
+      beta <- as.numeric(model$b[vars,])
+      se<- model$se[vars]
+      lci <- beta - 1.96 * se
+      uci <- beta + 1.96 * se
+      names(beta)<-c("x1", "x2")
+      names(se) <-c("x1", "x2")
+      names(lci)<-c("x1", "x2")
+      names(uci)<-c("x1", "x2")
+    }
+    
+    
+    cov1<-ifelse(lci["x1"]<= beta1 & uci["x1"]>=beta1, T,F )
+    if(d==2){
+      cov2<-ifelse(lci["x2"]<= beta2 & uci["x2"]>=beta2, T,F )
+    } else {
+      cov2<-NA
+    }
+  }  
+  if(ci=="model_se"){nboot<-NA}
+  
+  
+  ### my code: print out results
+  
+  if(d==1){
+    results_test1_summ<-c(x,par1,beta1,beta[1],se[1], cov1, loglik)
+    names(results_test1_summ)<-c("rowid", "p1", "beta1",
+                                 "Beta_1_est", "Beta_1_se", "Beta_1_cov", "Loglik")
+  }
+  
+  if(d==2){
+    results_test1_summ<-c(x,par1,par2, beta1,beta2, beta[1],beta[2],se[1],se[2], cov1, cov2, loglik)
+    names(results_test1_summ)<-c("rowid", 
+                                 "p1", "p2",
+                                 "beta1",  "beta2",
+                                 "Beta_1_est", "Beta_2_est",
+                                 "Beta_1_se", "Beta_2_se",
+                                 "Beta_1_cov", "Beta_2_cov",
+                                 "Loglik")
+  }
+  
+  model2<-model  
+  
+  
+  ###################################################################
+  # TEST 2: Subsequently, we fitted all
+  # fractional polynomials of the same degree and selected the
+  # best-fitting polynomial based on the likelihood. We assessed
+  # the proportion of simulations where the best-fitting fractional
+  # polynomial was the correct fractional polynomial.
+  
+  # non summerised fracpoly
+  keep3 <- fit_poly(alldata$fracpoly.Y, alldata$X, alldata$g, family = "gaussian",
+                    q = 10, d = truedeg, fig = F)
+  
+  # compare powers
+  powercheck<-ifelse(setequal(truepowers, keep3$powers),1,0)
+  
+  # is loglik in the group of fractional polynomials that fit almost as well 
+  # i.e. is this in the set of  fractional polynomials where twice the difference in 
+  # the log-likelihood (compared with the best-fitting polynomial)was less than 
+  # the 90th percentile point of a chi 2(m) where m = truedeg
+  
+  
+  loglik_diff<- 2*(as.numeric(keep3$loglik)-as.numeric(results_test1["Loglik"]))
+  loglik_test<- ifelse(loglik_diff< qchisq(.90, df=truedeg),1,0)
+  
+  results_test2<-c(powercheck, loglik_test, 
+                   keep3$p_tests[1],keep3$p_tests[2],keep3$p_tests[3],keep3$p_tests[4], 
+                   keep3$p_heterogeneity)
+  names(results_test2)<-c("powers_correct", "powers_in_set",
+                          "fp_d1_d2", "fp","quad", "Q",
+                          "cochQ", "trend")
+  
+  
+  # summerised
+  keep4 <- frac_poly_summ_mr_AM(bx = summdata$BetaXG, bxse = summdata$seBetaXG,
+                                by = summdata$BetaYG, byse = summdata$seBetaYG,
+                                xmean = summdata$meanX, family ="gaussian",
+                                fig = F, d = truedeg)
+  
+  
+  
+  # compare powers
+  powercheck<-ifelse(setequal(truepowers, keep4$powers),1,0)
+  
+  # is loglik in the group of fractional polynomials that fit almost as well 
+  # i.e. is this in the set of  fractional polynomials where twice the difference in 
+  # the log-likelihood (compared with the best-fitting polynomial)was less than 
+  # the 90th percentile point of a chi 2(m) where m = truedeg
+  
+  loglik_diff<- 2*(as.numeric(keep4$loglik)-as.numeric(results_test1_summ["Loglik"]))
+  loglik_test<- ifelse(loglik_diff< qchisq(.90, df=truedeg),1,0)
+  
+  results_test2_summ<-c(powercheck, loglik_test, 
+                        keep4$p_tests[1,], 
+                        keep4$p_heterogeneity)
+  names(results_test2_summ)<-c("powers_correct", "powers_in_set",
+                               "fp_d1_d2", "fp","quad", "Q",
+                               "cochQ", "trend")
+  
+  
+  #### Test 3: heuristic statistic
+  
+  # find the sum over quantile groups of the predicted vs. actual
+  # value of the outcome evaluated at the mean value 
+  # of the exposure in each quantile group
+  
+  fitted1<-fitted(model1)
+  fitted2<-fitted(model2)
+  fitted3<-keep3$fitted
+  fitted4<-keep4$fitted
+  
+  if(par1==par2){
+    if(par1==0){
+      expect <- beta0+
+        beta1*log(summdata$meanX)+
+        beta2*log(summdata$meanX)*log(summdata$meanX) +
+        0.5*0.8
+    }else{
+      expect <- beta0+ 
+        beta1*summdata$meanX^p1+
+        beta2*log(summdata$meanX)*summdata$meanX^par1 +
+        0.5*0.8
+    }
+  }else{
+    if(par1==0){ 
+      expect <- beta0+ 
+        beta1*log(summdata$meanX) + 
+        beta2*summdata$meanX^par2 +
+        0.5*0.8
+      
+    }else if(par2==0){
+      expect <- beta0+ 
+        beta1*summdata$meanX^p1 + 
+        beta2*log(summdata$meanX) +
+        0.5*0.8
+    }else{
+      expect <- beta0+ 
+        beta1*summdata$meanX^par1 + 
+        beta2*summdata$meanX^par2 +
+        0.5*0.8
+    }
+  }
+  out<- c(results_test1,results_test2)
+  out_summ<-c(results_test1_summ, results_test2_summ)
+  ## print out results
+  
+  results<-list(Test1_all=out, 
+                Test1_summ=out_summ)
+  return(results)
+  
+  
+  
+}
+
+

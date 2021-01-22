@@ -1,0 +1,174 @@
+
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> # will generate the degree 2 outcome of nlmr frac poly testing for specific setting
+> # author: Amy Mason
+> # input:  par1, par2, beta1, beta2
+> # input: 
+> 
+> 
+> 
+> 
+> setwd("/rds/project/jmmh2/rds-jmmh2-projects/zz_mr/nlmr/Non-linear MR/Matt Arnold Code")
+> if (!require("pacman")) install.packages("pacman")
+Loading required package: pacman
+> pacman::p_load(MASS,methods,parallel, metafor, ggplot2, matrixStats, survival,
++                patchwork)
+> if (!require("remotes")) install.packages("remotes")
+Loading required package: remotes
+> if (!require("nlmr")) remotes::install_github("jrs95/nlmr")
+Loading required package: nlmr
+> library(nlmr)
+> source("../nlme_summ_aes_AM.R")
+> # source("nlme_summ_aes.r")
+> source("../2_Gen_sim_data.R")
+> source("../fit_power_AM.R")
+> source("../4_assess_output.R")
+> # slurm code to run 
+> # sbatch --export=basePath="a" 5_gen_save_output.R
+> 
+> par1<- as.numeric(Sys.getenv('par1'))
+> beta1<-as.numeric(Sys.getenv('beta1'))
+> par2<- as.numeric(Sys.getenv('par2'))
+> beta2<-as.numeric(Sys.getenv('beta2'))
+> 
+> 
+> # add parellel calculations
+> 
+> library(doParallel)
+Loading required package: foreach
+Loading required package: iterators
+> cl <- makeCluster(8)
+> registerDoParallel(cl)
+> 
+> 
+> # create the data
+> all<-  foreach(i=1:5,
++                .inorder=FALSE,
++                .packages = c("nlmr","metafor")) %dopar% {
++                  source("../4_assess_output.R")  
++                  checkEst(x=i,deg=2, par1=par1,par2=par2,beta0=0,beta1=beta1,beta2=beta2)
++                  
++                }
+> stopCluster(cl)
+> all2<-as.data.frame(do.call(rbind,all))
+> test1_all<-as.data.frame(do.call(rbind,all2$Test1_all))
+> test1_summ<-as.data.frame(do.call(rbind,all2$Test1_summ))
+> 
+> 
+> # repeatedly run tests: degree 2
+> # p1, p2 in c(-3,-2,-1,-0.5,0,0.5,1,2,3))
+> 
+>     Answer_deg2<-c("all data", nrow(test1_all),test1_all[1, c("p1", "p2", "beta1", "beta2")],
++                    mean(test1_all$Beta_1_est), sd(test1_all$Beta_1_est), mean(test1_all$Beta_1_se),
++                    mean(test1_all$Beta_2_est), sd(test1_all$Beta_2_est), mean(test1_all$Beta_2_se),
++                    mean(test1_all$Beta_1_cov), mean(test1_all$Beta_2_cov),
++                    mean(test1_all$powers_correct), mean(test1_all$powers_in_set)
++     )
+>     
+>     names(Answer_deg2)<-c("type", "simulations", "p1", "p2", "Beta1", "Beta2",
++                           "est_Beta1_mean", "est_Beta1_sd", "est_Beta1_mean_SE",
++                           "est_Beta2_mean", "est_Beta2_sd", "est_Beta2_mean_SE",
++                           "cov_beta1", "cov_beta2",
++                           "fit_correct", "fit_set"
++     )
+>     
+>     Answer_deg2_summ<-c("summerised",nrow(test1_summ),test1_summ[1, c("p1", "p2", "beta1", "beta2")],
++                         mean(test1_summ$Beta_1_est), sd(test1_summ$Beta_1_est), mean(test1_summ$Beta_1_se),
++                         mean(test1_summ$Beta_2_est), sd(test1_summ$Beta_2_est), mean(test1_summ$Beta_2_se),
++                         mean(test1_summ$Beta_1_cov), mean(test1_summ$Beta_2_cov),
++                         mean(test1_summ$powers_correct), mean(test1_summ$powers_in_set)
++     )
+>     
+>     names(Answer_deg2_summ)<-c("type","simulations", "p1", "p2", "Beta1", "Beta2",
++                                "est_Beta1_mean", "est_Beta1_sd", "est_Beta1_mean_SE",
++                                "est_Beta2_mean", "est_Beta2_sd", "est_Beta2_mean_SE",
++                                "cov_beta1", "cov_beta2",
++                                "fit_correct", "fit_set"
++     )
+>     
+>     # look at the difference in p-test
+>     
+>     test1_diff<- test1_all[,c("fp_d1_d2", "fp", "quad","Q","cochQ","trend" )] - 
++       test1_summ[,c("fp_d1_d2", "fp", "quad","Q","cochQ","trend" )]
+>     
+>     max_diffs<-apply(as.matrix(abs(test1_diff)),2,max)
+>     names(max_diffs)<- c("max_fp_d1_d2_diff", "max_fp_diff", "max_quad_diff",
++                          "max_Q_diff","max_cochQ_diff","max_trend_diff")
+>     mean_diffs<-apply(as.matrix(test1_diff),2,mean)
+>     names(mean_diffs)<- c("mean_fp_d1_d2_diff", "mean_fp_diff", "mean_quad_diff",
++                           "mean_Q_diff","mean_cochQ_diff","mean_trend_diff")
+>     se_diffs<-apply(as.matrix(test1_diff),2,sd)
+>     names(se_diffs)<- c("se_fp_d1_d2_diff", "se_fp_diff", "se_quad_diff",
++                         "se_Q_diff","se_cochQ_diff","se_trend_diff")
+>     
+>     # how often do these differences create a change in significance at the 5% sig level
+>     test1_sig<-mapply(test1_all[,c("fp_d1_d2", "fp", "quad","Q","cochQ","trend" )], FUN=function(x)ifelse(x<0.05,1,0))
+>     test1_summ_sig <-mapply(test1_summ[,c("fp_d1_d2", "fp", "quad","Q","cochQ","trend" )], FUN=function(x)ifelse(x<0.05,1,0))
+>     sig_diff<-abs(test1_sig-test1_summ_sig)
+>     
+>     sig_changes<- apply(sig_diff,2, mean)
+>     names(sig_changes)<- c("change_fp_d1_d2_5%", "change_fp_5%", "change_quad_5%",
++                            "change_Q_5%","change_cochQ_5%","change_trend_5%")
+>     
+>     
+>     Ans_deg2<-rbind(Answer_deg2, Answer_deg2_summ)
+>     Ans_deg2_b<-rbind(c(max_diffs, mean_diffs, se_diffs, sig_changes), 
++                       c(max_diffs, mean_diffs, se_diffs, sig_changes))
+>     Ans2<-cbind(Ans_deg2,Ans_deg2_b)
+>     Ans2<-as.data.frame(Ans2)
+>     Ans2$date<-as.character(Sys.time())
+>     Ans2$date2<-Sys.time()
+>     Ans2<-as.matrix(Ans2)
+>     
+>     
+>        # write data out to file
+>     
+>     #check if file exists - if not makes headers 
+>     
+>     
+>     names_out2<- c("type", "simulations", "p1", "p2", "Beta1", "Beta2",
++                    "est_Beta1_mean", "est_Beta1_sd", "est_Beta1_mean_SE",
++                    "est_Beta2_mean", "est_Beta2_sd", "est_Beta2_mean_SE",
++                    "cov_beta1", "cov_beta2",
++                    "fit_correct", "fit_set",
++                    "max_fp_d1_d2_diff", "max_fp_diff", "max_quad_diff",
++                    "max_Q_diff","max_cochQ_diff","max_trend_diff", 
++                    "mean_fp_d1_d2_diff", "mean_fp_diff", "mean_quad_diff",
++                    "mean_Q_diff","mean_cochQ_diff","mean_trend_diff",
++                    "se_fp_d1_d2_diff", "se_fp_diff", "se_quad_diff",
++                    "se_Q_diff","se_cochQ_diff","se_trend_diff",
++                    "change_fp_d1_d2_5%", "change_fp_5%", "change_quad_5%",
++                    "change_Q_5%","change_cochQ_5%","change_trend_5%")
+>     
+>     if (!file.exists("../Table_output/table1b.csv")) {  
++       write.table(x=t(names_out2), file="../Table_output/table1b.csv", col.names=FALSE, row.names=FALSE, sep=",")
++       
++     }
+>     
+>     write.table(x=Ans2, file="../Table_output/table1b.csv", append=TRUE, col.names = FALSE, row.names=FALSE, sep=",")
+>     
+>     
+>    
+> 
+> proc.time()
+   user  system elapsed 
+  2.160   0.371  22.007 

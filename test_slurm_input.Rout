@@ -1,0 +1,31 @@
+
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> base.path = Sys.getenv('basePath')
+> practise<-as.matrix( c( base.path, "test")) 
+> write.table(practise, "/rds/project/jmmh2/rds-jmmh2-projects/zz_mr/nlmr/Non-linear MR/Table_output/table_test.csv", append = TRUE)
+Warning message:
+In write.table(practise, "/rds/project/jmmh2/rds-jmmh2-projects/zz_mr/nlmr/Non-linear MR/Table_output/table_test.csv",  :
+  appending column names to file
+> 
+> proc.time()
+   user  system elapsed 
+  1.246   0.260  12.022 

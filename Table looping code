@@ -1,0 +1,30 @@
+**TABLE 1**
+
+cd "/rds/project/jmmh2/rds-jmmh2-projects/zz_mr/nlmr/Non-linear MR/"
+module load R/4.0.3
+
+for p in {-2 -1 -0.5 0 0.5 1 2 3} 
+do
+for b in {0 1 2}
+do
+sbatch --export=par1="$p",beta1="$b" -J "table1" R CMD BATCH 5_gen_save_output.R
+done
+done
+
+** TABLE 1b **
+
+cd "/rds/project/jmmh2/rds-jmmh2-projects/zz_mr/nlmr/Non-linear MR/"
+module load R/4.0.3
+
+for p in {-2 -1 -0.5 0 0.5 1 2 3} 
+do
+for q in {-2 -1 -0.5 0 0.5 1 2 3} 
+do
+sbatch --export=par1="$p",par2="$q",beta1="1",beta2="2" -J "table1b" R CMD BATCH 5b_gen_save_output2.R
+sbatch --export=par1="$p",par2="$q",beta1="2",beta2="1" -J "table1b" R CMD BATCH 5b_gen_save_output2.R
+sbatch --export=par1="$p",par2="$q",beta1="0",beta2="0" -J "table1b" R CMD BATCH 5b_gen_save_output2.R
+done
+done
+
+**Table2 **
+

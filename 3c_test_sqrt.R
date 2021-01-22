@@ -14,7 +14,7 @@ require(survival)
 require(ggplot2)
 require(gridExtra)
 source("nlmr_functions.r")
-source("nlme_summ_aes MA.r")
+source("nlme_summ_aes.r")
 # fixing random numbers for repetition of what is generated
 set.seed(4743045)
 # creating random underlying data
@@ -24,11 +24,11 @@ set.seed(4743045)
 # test nlme_summ_aes on summerised data (1 set)
 
 beta_set1<-1.5
-beta_set2<-2
+beta_set2<-4
 
 lotsofdata<- create_summary_data(Ytype = "sqrt", keep = TRUE, N = 10000, 
                                  beta1 = beta_set1, beta2 = beta_set2,
-                                 quantiles = 100, confound = 0)
+                                 quantiles = 100, confound = 0.5)
 testdata<-lotsofdata$summary 
 alldata<-lotsofdata$alldata
 
@@ -39,29 +39,32 @@ ggplot(data = alldata, aes(x = X, y = "sqrt.Y") )+
   geom_jitter(alpha = 0.3, aes(colour = as.factor(g)))
 
 # underlying data check
-alldata$xsqrt<-sqrt(alldata$X)
-lm(data = alldata, sqrt.Y~X+xsqrt)
+alldata$xsq<-sqrt(alldata$X)
+lm(data = alldata, sqrt.Y~xsq)
 
 
 # non summerised fracpoly
 keep1 <- fracpoly_mr(alldata$sqrt.Y, alldata$X, alldata$g, family = "gaussian",
-            q = 10, d = 1, fig = T)
+                     q = 10, d = 1, fig = T)
 
 
 # summerised
 keep2 <- frac_poly_summ_mr(bx = testdata$BetaXG, bxse = testdata$seBetaXG,
-                        by = testdata$BetaYG, byse = testdata$seBetaYG,
-                        xmean = testdata$meanX, family ="gaussian",
-                        fig = TRUE, d = 1)
+                           by = testdata$BetaYG, byse = testdata$seBetaYG,
+                           xmean = testdata$meanX, family ="gaussian",
+                           fig = TRUE, d = "both")
 summary.frac_poly_mr(keep2)
 
-f <- function(x) (beta_set1*sqrt(x))
+f <- function(x) (beta_set1*sqrt(x) - 
+                    beta_set1*sqrt(mean(alldata$X)))
 
-plot1 <- keep1$figure+ stat_function(fun = f, colour = "green")+ 
-  labs(title="fracpoly_mr")
-plot2 <- keep2$figure+ stat_function(fun = f, colour = "green") +
-  labs(title="fracpoly_summ_mr")
-grid.arrange(plot1, plot2, ncol=2)
+plot1 <- keep1$figure+ stat_function(fun = f, colour = "green") +
+  ggtitle("fracpoly_mr")
+plot2 <- keep2$figure+ stat_function(fun = f, colour = "green")+
+  ggtitle("fracpoly_summ_mr")
+
+plot1+plot2
+
 
 #######
 

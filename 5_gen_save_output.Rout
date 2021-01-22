@@ -1,0 +1,69 @@
+
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> # will generate the degree 1 outcome of nlmr frac poly testing for specific setting
+> # author: Amy Mason
+> # input: number of repeats, par1, par2, beta1, beta2
+> # input: 
+> 
+> 
+> 
+> 
+> setwd("/rds/project/jmmh2/rds-jmmh2-projects/zz_mr/nlmr/Non-linear MR/Matt Arnold Code")
+> if (!require("pacman")) install.packages("pacman")
+Loading required package: pacman
+> pacman::p_load(MASS,methods,parallel, metafor, ggplot2, matrixStats, survival,
++                patchwork)
+> if (!require("remotes")) install.packages("remotes")
+Loading required package: remotes
+> if (!require("nlmr")) remotes::install_github("jrs95/nlmr")
+Loading required package: nlmr
+> library(nlmr)
+> source("../nlme_summ_aes_AM.R")
+> # source("nlme_summ_aes.r")
+> source("../2_Gen_sim_data.R")
+> source("../fit_power_AM.R")
+> source("../4_assess_output.R")
+> 
+> # slurm code to run 
+> # sbatch --export=basePath="a" 5_gen_save_output.R
+> 
+> par1<- as.numeric(Sys.getenv('par1'))
+> beta1<-as.numeric(Sys.getenv('beta1'))
+> 
+> 
+> # add parellel calculations
+> 
+> library(doParallel)
+Loading required package: foreach
+Loading required package: iterators
+> cl <- makeCluster(8)
+> registerDoParallel(cl)
+> set.seed(4743045)
+> 
+> # create the data
+> all<-  foreach(i=1:500,
++           .inorder=FALSE,
++           .packages = c("nlmr","metafor")) %dopar% {
++             source("../4_assess_output.R")  
++     checkEst(x=i,deg=1, par1=par1,par2=0,beta0=0,beta1=beta1,beta2=0)
++     
++           }

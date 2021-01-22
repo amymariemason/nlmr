@@ -1,7 +1,7 @@
 install.packages(c("metafor", "ggplot2")) # only needs to be run once
 
 library(metafor); library(ggplot2)
-setwd("C:/Projects/bmishape") # replace with your project folder
+setwd("C:/Users/Amy/Documents/Non-linear MR/Matt Arnold Code") # replace with your project folder
 source("nlme_summ_aes.R")     # this is the non-linear function
 
 ####

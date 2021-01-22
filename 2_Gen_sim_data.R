@@ -3,20 +3,16 @@
 # Purpose: functions to generate simulation data from nlmr paper 
 # Date: Jan 2019
 ##
-setwd("C:/Users/Amy/Documents/Non-linear MR/Matt Arnold Code")
-require(MASS)
-require(methods)
-require(parallel)
-require(metafor)
-require(ggplot2)
-require(matrixStats)
-require(survival)
-require(ggplot2)
-require(patchwork)
-source("nlmr_functions.r")
-source("nlme_summ_aes.r")
-# fixing random numbers for repetition of what is generated
-set.seed(4743045)
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(MASS,methods,parallel, metafor, ggplot2, matrixStats, survival,
+               patchwork)
+if (!require("remotes")) install.packages("remotes")
+if (!require("nlmr")) remotes::install_github("jrs95/nlmr")
+library(nlmr)
+source("../Matt Arnold Code/nlmr_functions.r")
+source("../Matt Arnold Code/nlme_summ_aes.R")
+# fixing random numbers for repetition of what is generated in test
+#set.seed(4743045)
 # creating random underlying data
 
 # function: create_data
@@ -35,12 +31,12 @@ set.seed(4743045)
 ### POTENTIAL EXPANSION - add known covariate (linear?)
 
 
-create_data <- function(N, beta1 = 3, beta2 = 7, confound = 0.5) {
+create_data <- function(N, p1=1, p2=0, beta0=0, beta1 = 3, beta2 = 7, confound = 0.8){
   # generate G  
   data <- as.data.frame(rbinom(N,2,0.3))
   names(data) <- c("g")
   
-  # generate U,
+  # generate Unknown confound
   data$u <- runif(N,0,1)
   
   # generate error terms
@@ -58,48 +54,30 @@ create_data <- function(N, beta1 = 3, beta2 = 7, confound = 0.5) {
   data$log.Y <-         beta1*log(data$X) + confound*data$u + data$errorY
   data$threshold.Y <-   ifelse(data$X > beta2, beta1*data$X, 0)+
                           confound*data$u + data$errorY
+  if(p1==p2){
+    if(p1==0){
+    data$fracpoly.Y <- beta0+beta1*log(data$X)+beta2*log(data$X)*log(data$X) +
+                        confound*data$u + data$errorY
+    }else{
+      data$fracpoly.Y <- beta0+beta1*data$X^p1+beta2*log(data$X)*data$X^p1 +
+        confound*data$u + data$errorY  
+      }
+    }else{
+      if(p1==0){ 
+        data$fracpoly.Y <- beta0+beta1*log(data$X) + beta2*data$X^p2 +
+        confound*data$u + data$errorY
+        
+      }else if(p2==0){
+        data$fracpoly.Y <-beta0+beta1*data$X^p1 + beta2*log(data$X) +
+          confound*data$u + data$errorY
+      }else{
+    data$fracpoly.Y <- beta0+beta1*data$X^p1 + beta2*data$X^p2 +
+                        confound*data$u + data$errorY
+      }
+    }
   return(data)
 }
 
-
-#############################################################
-# test data pre-summary
-
-library(nlmr)
-data<-create_data(10000)
-# TEST 1: Linear data
-test1<- fracpoly_mr(data$linear.Y, data$X, data$g, family="gaussian", q = 10,
-                    d = 1, fig = T)
-test2<- piecewise_mr(data$linear.Y, data$X, data$g, family="gaussian", fig = T)
-
-f <- function(x) (3*(x-mean(data$X)))
-test1$figure+stat_function(fun = f, colour = "green")+
-  test2$figure+stat_function(fun = f, colour = "green")
-# TEST 2: quadratic data
-
-test1<-  fracpoly_mr(data$quadratic.Y, data$X, data$g, family="gaussian",
-                     q = 10, d = "both", fig = T)
-
-test2<-  piecewise_mr(data$quadratic.Y, data$X, data$g, family="gaussian",
-                     fig = T)
- 
-xref=mean(data$X)
- f <- function(x) (7*x^2 + 3*x - 7*xref^2-3*xref)
- test1$figure+stat_function(fun = f, colour = "green")+
-   test2$figure+stat_function(fun = f, colour = "green")
- 
- 
-# 
- fracpoly_mr(data$sqrt.Y, data$X, data$g, family="gaussian", q = 10, d = 1,
-             fig=T)
- fracpoly_mr(data$log.Y, data$X, data$g, family="gaussian", q = 10, d = 1, 
-             fig = T)
- fracpoly_mr(data$threshold.Y, data$X, data$g, family="gaussian", q = 10, d = 1,
-             fig = T)
-
-# Conclusion: all data is generating correctly and identified by the programs
- # for linear and quadratic data
- 
 #############################################################
 #  create quanta summary data function
 #  some code recycled from Stephen Burgess
@@ -130,19 +108,12 @@ xref=mean(data$X)
  
  
  
-summary_function <- function(data, gene, exposure, outcome, quant = 100) { 
-  #### ARGH, SHOULD BE IV-FREE EXPOSURE
+summary_function <- function(data, gene, exposure, outcome, quant = 10) { 
+
+  ivf<- iv_free(y = data[,outcome], x = data[,exposure], g = data[,gene],
+                covar = NULL, q = quant, family = "gaussian") 
   
-  # linear model of G->Y
-  YG<-lm(data[,outcome]~data[,gene])
-  Y0<- data[,outcome] - YG$fit
-  
-  # this calculates the "IV-free exposure"
- qs = quantile(Y0, prob=seq(0, 1-1/quant, by=1/quant))
-  qs2 = quantile(data[,exposure], prob=seq(0, 1-1/quant, by=1/quant))
-  # this divides into strata based on IV-free exposure
-#quantx0 = as.numeric(lapply(Y0, function(x) { return(sum(x>qs)) }))
-  quantx0 = as.numeric(lapply(data[,exposure], function(x) { return(sum(x>qs2)) }))
+  quantx0 <- ivf$x0q
   
   # this calculates the association for each quanta
   BetaYG   = NULL
@@ -150,9 +121,8 @@ summary_function <- function(data, gene, exposure, outcome, quant = 100) {
   BetaXG  = NULL
   seBetaXG = NULL
   meanX = NULL
-  BetaXY = NULL
-  
-  for (j in 1:length(qs)) {
+
+  for (j in 1:quant) {
     BetaYG[j]   = summary(lm(data[quantx0 == j, outcome] ~ 
                                data[quantx0 == j, gene]))$coef[2]
     seBetaYG[j] = summary(lm(data[quantx0 == j,outcome] ~
@@ -162,36 +132,21 @@ summary_function <- function(data, gene, exposure, outcome, quant = 100) {
     seBetaXG[j] = summary(lm(data[quantx0 == j, exposure] ~
                                data[quantx0 == j, gene]))$coef[2,2]
     meanX[j] = mean(data[quantx0 == j, exposure])
-    BetaXY[j] = BetaYG[j]/BetaXG[j]
   }
   
 
- output <- data.frame(BetaXG, BetaYG, seBetaXG, seBetaYG, meanX, BetaXY)
- print(list(summary = head(output)))
+ output <- data.frame(BetaXG, BetaYG, seBetaXG, seBetaYG, meanX)
+# print(list(summary = head(output)))
  invisible(list(summary = output))
 }
  
-# test summary function
- 
-# test 1: linear  
- summ<-summary_function(data, gene = "g", exposure = "X",
-                        outcome = "linear.Y", quant = 10) 
- 
- test1<- fracpoly_mr(data$linear.Y, data$X, data$g, family="gaussian", q = 10,
-                     d = 1, fig = T)
- test2<- piecewise_mr(data$linear.Y, data$X, data$g, family="gaussian", fig = T)
- 
- f <- function(x) (3*(x-mean(data$X)))
- test1$figure+stat_function(fun = f, colour = "green")+
-   test2$figure+stat_function(fun = f, colour = "green")
 
 
 #############################################################
 # generate summary data
 
-create_summary_data<-function(Ytype = "linear", quantiles = 100, keep = FALSE,
-                              N = 10000, beta1 = 3, beta2 = 7, 
-                              confound = 0.8) {
+create_summary_data<-function(Ytype = "linear", quantiles = 10, keep = FALSE,
+                             ...) {
   # create empty summary set
   df <- data.frame(matrix(ncol = 6, nrow = 0))
   names(df) <- c("Set", "BetaXG", "BetaYG", "seBetaXG", "seBetaYG", "meanX")
@@ -207,13 +162,16 @@ create_summary_data<-function(Ytype = "linear", quantiles = 100, keep = FALSE,
     Ytype_name <- "log.Y"
   } else if(Ytype == "threshold"){ 
     Ytype_name <- "threshold.Y"
+  } else if(Ytype == "fracpoly"){ 
+    Ytype_name <- "fracpoly.Y"  
   } else {
     stop("model type not supported")
-  }
+
+      }
 
   # create the data
   
-  data<-create_data(N, beta1, beta2, confound)
+  data<-create_data(...)
   summ<-summary_function(data, gene = "g", exposure = "X",
                          outcome = Ytype_name, quant = quantiles)
   summ_data<-summ$summary
@@ -221,16 +179,16 @@ create_summary_data<-function(Ytype = "linear", quantiles = 100, keep = FALSE,
   # keep entire set if keep variable set to TRUE
    if(keep == TRUE){
       data$quantiles <- summ$quantilesort
-      print(paste(N, "individuals generated and summerized into ", quantiles,
-                  " quantiles"))
-      print("individual data kept")
-      print(list(summary = head(summ_data), alldata = head(data)))
+ #     print(paste(N, "individuals generated and summerized into ", quantiles,
+ #                 " quantiles"))
+ #     print("individual data kept")
+ #     print(list(summary = head(summ_data), alldata = head(data)))
       invisible(list(summary = summ_data, alldata = data))
    }else{
-      print(paste(N, "individuals generated and summerized into ", quantiles,
-                  " quantiles"))
-      print("individual data not kept")
-      print(list(summary = head(summ_data)))
+#      print(paste(N, "individuals generated and summerized into ", quantiles,
+#                  " quantiles"))
+ #     print("individual data not kept")
+#      print(list(summary = head(summ_data)))
       invisible(list(summary = summ_data))
   }
   }

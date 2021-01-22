@@ -59,11 +59,13 @@ f <- function(x) (beta_set1*x +
                     beta_set2*x^2 - beta_set1*3.65 -
                     beta_set2*3.65^2 )
 
-plot1 <- keep1$figure+ stat_function(fun = f, colour = "green")+
-  labs(title="fracpoly_mr")
-plot2 <- keep2$figure+ stat_function(fun = f, colour = "green") +
-  labs(title="fracpoly_summ_mr")
-grid.arrange(plot1, plot2, ncol=2)
+plot1 <- keep1$figure+ stat_function(fun = f, colour = "green") +
+  ggtitle("fracpoly_mr")
+plot2 <- keep2$figure+ stat_function(fun = f, colour = "green")+
+  ggtitle("fracpoly_summ_mr")
+
+plot1+plot2
+
 
 #######
 
